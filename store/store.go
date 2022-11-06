@@ -85,6 +85,7 @@ func (s *Store) Close() error {
 	return nil
 }
 
+// isLeader returns a boolean based on if the node is a leader or not.
 func (s *Store) isLeader() bool {
 	return s.raft.State() == raft.Leader
 }
@@ -106,6 +107,8 @@ func (s *Store) remove(id string) error {
 	return nil
 }
 
+// Join adds a node with 'id' and 'addr' into the raft cluster. The address is the
+// raft bind address of the node.
 func (s *Store) Join(id, addr string) error {
 	s.logger.Info("join request", zap.String("id", id), zap.String("addr", addr))
 
@@ -149,6 +152,7 @@ func (s *Store) Join(id, addr string) error {
 	return nil
 }
 
+// Leave removes a node from the cluster with the given id.
 func (s *Store) Leave(id string) error {
 	s.logger.Info("leave request for node", zap.String("id", id))
 	if !s.isLeader() {
@@ -164,18 +168,67 @@ func (s *Store) Leave(id string) error {
 	return nil
 }
 
+// LeaderAddr returns the raft bind address of the leader node.
 func (s *Store) LeaderAddr() string {
 	return string(s.raft.Leader())
 }
 
+// Apply handles the applyRequest made by the createApplyReq function. It returns a
+// applyResult struct such that handler functions can properly handle the given error.
+func (s *Store) Apply(l *raft.Log) interface{} {
+	flag, key, value := deserializeEntry(l.Data)
+
+	switch flag {
+	case SetOperation:
+		return applyResult{res: nil, err: s.cache.Set(key, value)}
+	case GetOperation:
+		val, err := s.cache.Get(key)
+		return applyResult{res: val, err: err}
+	}
+	return nil
+}
+
+// Set applies a given key-value pair into the raft cluster. Since writing a key
+// is a leader-only operation, we need to check for that as well.
 func (s *Store) Set(key string, value []byte) error {
 	if !s.isLeader() {
 		return raft.ErrNotLeader
 	}
 
-	return nil
+	res, err := s.createApplyReq(SetOperation, key, value)
+	if err != nil {
+		// error in raft processing
+		return err
+	}
+
+	// error writing to cache on leader.
+	r := res.(*applyResult)
+	return r.err
 }
 
+// createApplyReq sends formulates data in a good way and sends the request with the data
+// to raft.Apply(), which is in turn handled by our Apply() function on another raft node.
+func (s *Store) createApplyReq(ty byte, key string, value []byte) (interface{}, error) {
+	buffer := serializeEntry(ty, key, value)
+
+	f := s.raft.Apply(buffer, 10*time.Second)
+	if err := f.Error(); err != nil {
+		return nil, err
+	}
+
+	r := f.Response()
+	if err, ok := r.(error); ok {
+		return nil, err
+	}
+	return r, nil
+}
+
+// Get finds a value with a given key either from this node's cache, or the leader.
+// If the value is retrieved from a non-leader node, we risk the chance of the value
+// not existing, or being old. On the other hand, request the value from the leader
+// adds a lot of overhead.
 func (s *Store) Get(key string) ([]byte, error) {
+	// TODO: strong consistency aka get from leader
+
 	return s.cache.Get(key)
 }
