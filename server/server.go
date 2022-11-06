@@ -22,7 +22,6 @@ func (s *Server) handler(ctx *fasthttp.RequestCtx) {
 
 		key := string(ctx.RequestURI()[1:])
 		err := s.store.Set(key, postData)
-
 		if err != nil {
 			if err == raft.ErrNotLeader {
 				// TODO: redirect request

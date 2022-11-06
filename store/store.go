@@ -3,11 +3,15 @@ package store
 import (
 	"context"
 	"encoding/binary"
+	"io"
+	"net"
+	"os"
 	"path/filepath"
 	"time"
 
 	"github.com/allegro/bigcache/v3"
 	"github.com/hashicorp/raft"
+	fastlog "github.com/tidwall/raft-fastlog"
 	"go.uber.org/zap"
 )
 
@@ -47,17 +51,25 @@ type Store struct {
 	cache *bigcache.BigCache
 }
 
+type Config struct {
+	DataDir   string
+	BindAddr  string
+	Bootstrap bool
+}
+
 type applyResult struct {
 	res any
 	err error
 }
 
 // New creates a store instance.
-func New(dataDir string) (*Store, error) {
+func New(conf Config) (*Store, error) {
 	logger, err := zap.NewProduction()
 	if err != nil {
 		return nil, err
 	}
+
+	raftDir := filepath.Join(conf.DataDir, "raft")
 
 	// setup a cache
 	cache, err := bigcache.New(context.Background(), bigcache.DefaultConfig(10*time.Minute))
@@ -65,12 +77,50 @@ func New(dataDir string) (*Store, error) {
 		return nil, err
 	}
 
-	return &Store{
-		raft:    nil,
-		raftDir: filepath.Join(dataDir, "raft"),
-		logger:  logger,
-		cache:   cache,
-	}, nil
+	store := &Store{
+		raft:   nil,
+		logger: logger,
+		cache:  cache,
+	}
+
+	addr, err := net.ResolveTCPAddr("tcp", conf.BindAddr)
+	if err != nil {
+		return nil, err
+	}
+
+	transport, err := raft.NewTCPTransport(conf.BindAddr, addr, 10, 10*time.Second, os.Stderr)
+	if err != nil {
+		return nil, err
+	}
+
+	stableStore, err := fastlog.NewFastLogStore(":memory:", fastlog.Medium, io.Discard)
+	if err != nil {
+		return nil, err
+	}
+
+	snapshotStore, err := raft.NewFileSnapshotStore(raftDir, 1, os.Stderr)
+	if err != nil {
+		return nil, err
+	}
+
+	config := raft.DefaultConfig()
+	config.SnapshotThreshold = 16384
+
+	store.raft, err = raft.NewRaft(config, store, stableStore, stableStore, snapshotStore, transport)
+	if err != nil {
+		return nil, err
+	}
+
+	if conf.Bootstrap {
+		conf := raft.Configuration{
+			Servers: []raft.Server{{
+				ID:      config.LocalID,
+				Address: raft.ServerAddress(conf.BindAddr),
+			}},
+		}
+		err = store.raft.BootstrapCluster(conf).Error()
+	}
+	return store, err
 }
 
 // Close down this raft node and flush out possible data in the logger.
@@ -231,4 +281,12 @@ func (s *Store) Get(key string) ([]byte, error) {
 	// TODO: strong consistency aka get from leader
 
 	return s.cache.Get(key)
+}
+
+func (s *Store) Snapshot() (raft.FSMSnapshot, error) {
+	return nil, nil
+}
+
+func (s *Store) Restore(rc io.ReadCloser) error {
+	return nil
 }
