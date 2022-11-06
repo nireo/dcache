@@ -1,27 +1,75 @@
 package store
 
 import (
+	"context"
+	"encoding/binary"
+	"path/filepath"
+	"time"
+
+	"github.com/allegro/bigcache/v3"
 	"github.com/hashicorp/raft"
 	"go.uber.org/zap"
 )
+
+const (
+	SetOperation byte = iota
+	GetOperation
+)
+
+// don't need a complicated serializer/deserializer since our data format is
+// quite simple.
+func serializeEntry(flag byte, key string, val []byte) []byte {
+	// HEADER: (FLAG 1byte) + (KEY_SIZE uint32 4bytes) (KEY_DATA) +
+	// (VALUE_SIZE uint32 4bytes) + (VALUE_DATA)
+
+	buf := make([]byte, 1+4+len(key)+4+len(val))
+	buf[0] = flag
+	binary.LittleEndian.PutUint32(buf[1:], uint32(len(key)))
+	copy(buf[5:], []byte(key))
+	binary.LittleEndian.PutUint32(buf[5+len(key):], uint32(len(val)))
+	copy(buf[5+len(key)+4:], val)
+
+	return buf
+}
+
+func deserializeEntry(buf []byte) (byte, string, []byte) {
+	keySize := binary.LittleEndian.Uint32(buf[1:])
+	key := string(buf[5 : 5+keySize])
+	return buf[0], key,
+		buf[(5 + keySize + 4) : binary.LittleEndian.Uint32(buf[5+keySize:])+(5+keySize+4)]
+}
 
 type Store struct {
 	raft    *raft.Raft
 	raftDir string
 	logger  *zap.Logger
+
+	cache *bigcache.BigCache
+}
+
+type applyResult struct {
+	res any
+	err error
 }
 
 // New creates a store instance.
-func New() (*Store, error) {
+func New(dataDir string) (*Store, error) {
 	logger, err := zap.NewProduction()
+	if err != nil {
+		return nil, err
+	}
+
+	// setup a cache
+	cache, err := bigcache.New(context.Background(), bigcache.DefaultConfig(10*time.Minute))
 	if err != nil {
 		return nil, err
 	}
 
 	return &Store{
 		raft:    nil,
-		raftDir: "",
+		raftDir: filepath.Join(dataDir, "raft"),
 		logger:  logger,
+		cache:   cache,
 	}, nil
 }
 
@@ -118,4 +166,12 @@ func (s *Store) Leave(id string) error {
 
 func (s *Store) LeaderAddr() string {
 	return string(s.raft.Leader())
+}
+
+func (s *Store) Set(key string, value []byte) error {
+	if !s.isLeader() {
+		return raft.ErrNotLeader
+	}
+
+	return nil
 }
