@@ -175,3 +175,7 @@ func (s *Store) Set(key string, value []byte) error {
 
 	return nil
 }
+
+func (s *Store) Get(key string) ([]byte, error) {
+	return s.cache.Get(key)
+}
