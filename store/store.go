@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 	"encoding/binary"
+	"errors"
 	"io"
 	"net"
 	"os"
@@ -55,6 +56,14 @@ type Config struct {
 	DataDir   string
 	BindAddr  string
 	Bootstrap bool
+	LocalID   raft.ServerID
+
+	// Timeouts
+	HeartbeatTimeout   time.Duration
+	ElectionTimeout    time.Duration
+	CommitTimeout      time.Duration
+	LeaderLeaseTimeout time.Duration
+	SnapshotThreshold  uint64
 }
 
 type applyResult struct {
@@ -104,7 +113,24 @@ func New(conf Config) (*Store, error) {
 	}
 
 	config := raft.DefaultConfig()
-	config.SnapshotThreshold = 16384
+	config.SnapshotThreshold = conf.SnapshotThreshold
+	config.LocalID = conf.LocalID
+
+	if conf.HeartbeatTimeout != 0 {
+		config.HeartbeatTimeout = conf.HeartbeatTimeout
+	}
+
+	if conf.ElectionTimeout != 0 {
+		config.ElectionTimeout = conf.ElectionTimeout
+	}
+
+	if conf.LeaderLeaseTimeout != 0 {
+		config.LeaderLeaseTimeout = conf.LeaderLeaseTimeout
+	}
+
+	if conf.CommitTimeout != 0 {
+		config.CommitTimeout = conf.CommitTimeout
+	}
 
 	store.raft, err = raft.NewRaft(config, store, stableStore, stableStore, snapshotStore, transport)
 	if err != nil {
@@ -252,7 +278,7 @@ func (s *Store) Set(key string, value []byte) error {
 	}
 
 	// error writing to cache on leader.
-	r := res.(*applyResult)
+	r := res.(applyResult)
 	return r.err
 }
 
@@ -289,4 +315,24 @@ func (s *Store) Snapshot() (raft.FSMSnapshot, error) {
 
 func (s *Store) Restore(rc io.ReadCloser) error {
 	return nil
+}
+
+func (s *Store) WaitForLeader(t time.Duration) (string, error) {
+	ticker := time.NewTicker(100 * time.Millisecond)
+	defer ticker.Stop()
+
+	timer := time.NewTimer(t)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ticker.C:
+			l := s.LeaderAddr()
+			if l != "" {
+				return l, nil
+			}
+		case <-timer.C:
+			return "", errors.New("wait for leader timeout expired")
+		}
+	}
 }

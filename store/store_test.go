@@ -1,16 +1,20 @@
 package store
 
 import (
-	"bytes"
+	"fmt"
+	"net"
+	"os"
 	"testing"
+	"time"
+
+	"github.com/hashicorp/raft"
+	"github.com/stretchr/testify/require"
 )
 
 func xd(d []byte) {
-	return
 }
 
 func xd1(a1 byte, a2 string, a3 []byte) {
-	return
 }
 
 func BenchmarkSerialize(b *testing.B) {
@@ -38,15 +42,69 @@ func TestSerialization(t *testing.T) {
 
 	flag, key2, val2 := deserializeEntry(data)
 
-	if flag != SetOperation {
-		t.Fatalf("flag was incorrect. got=%d want=%d", flag, SetOperation)
+	require.Equal(t, SetOperation, flag, "flag was not equal to set operation")
+	require.Equal(t, key, key2, "decoded key is not the same as the original")
+	require.Equal(t, val, val2, "decoded value is no the same as the original")
+}
+
+func getFreePort() (int, error) {
+	addr, err := net.ResolveTCPAddr("tcp", "localhost:0")
+	if err != nil {
+		return 0, err
 	}
 
-	if key2 != key {
-		t.Fatalf("key was incorrect. got=%s want=%s", key2, key)
+	l, err := net.ListenTCP("tcp", addr)
+	if err != nil {
+		return 0, err
 	}
+	defer l.Close()
 
-	if !bytes.Equal(val2, val) {
-		t.Fatalf("val was incorrect. got=%s want=%s", string(val2), string(val))
+	return l.Addr().(*net.TCPAddr).Port, nil
+}
+
+func genNPorts(n int) []int {
+	ports := make([]int, n)
+	for i := 0; i < n; i++ {
+		ports[i], _ = getFreePort()
 	}
+	return ports
+}
+
+func newTestStore(t *testing.T, port, id int, bootstrap bool) (*Store, error) {
+	datadir, err := os.MkdirTemp("", "store-test")
+	require.NoError(t, err)
+
+	t.Cleanup(func() {
+		os.RemoveAll(datadir)
+	})
+
+	conf := Config{}
+	conf.BindAddr = fmt.Sprintf("localhost:%d", port)
+	conf.LocalID = raft.ServerID(fmt.Sprintf("%d", id))
+	conf.Bootstrap = bootstrap
+	conf.HeartbeatTimeout = 50 * time.Millisecond
+	conf.ElectionTimeout = 50 * time.Millisecond
+	conf.LeaderLeaseTimeout = 50 * time.Millisecond
+	conf.CommitTimeout = 5 * time.Millisecond
+	conf.SnapshotThreshold = 10000
+	conf.DataDir = datadir
+
+	return New(conf)
+}
+
+func TestSingleNode(t *testing.T) {
+	port, _ := getFreePort()
+
+	store, err := newTestStore(t, port, 1, true)
+	require.NoError(t, err)
+
+	store.WaitForLeader(3 * time.Second)
+
+	err = store.Set("entry1", []byte("garbage"))
+	require.NoError(t, err)
+
+	val, err := store.Get("entry1")
+	require.NoError(t, err)
+
+	require.Equal(t, []byte("garbage"), val)
 }
