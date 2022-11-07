@@ -26,6 +26,7 @@ func (s *Server) handler(ctx *fasthttp.RequestCtx) {
 			if err == raft.ErrNotLeader {
 				// TODO: redirect request
 			}
+
 			ctx.Error("error writing to cluster", fasthttp.StatusInternalServerError)
 			return
 		}
