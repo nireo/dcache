@@ -35,13 +35,14 @@ func New(handler Handler, config Config) (*Registry, error) {
 	}
 
 	if err := r.setupSerf(); err != nil {
+		return nil, err
 	}
 
 	return r, nil
 }
 
 func (r *Registry) setupSerf() error {
-	addr, err := net.ResolveTCPAddr("tcp", m.BindAddr)
+	addr, err := net.ResolveTCPAddr("tcp", r.BindAddr)
 	if err != nil {
 		return err
 	}
