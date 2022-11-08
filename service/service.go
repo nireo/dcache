@@ -36,8 +36,9 @@ func (c *Config) RPCAddr() (string, error) {
 	return fmt.Sprintf("%s:%d", host, c.RPCPort), nil
 }
 
+// Service handles combining every component of the system.
 type Service struct {
-	conf   Config
+	Config Config
 	mux    cmux.CMux
 	server *grpc.Server
 	store  *store.Store
@@ -48,9 +49,11 @@ type Service struct {
 	shutdownlock sync.Mutex
 }
 
+// New returns a new service instance. This function also sets up the
+// registry, store, mux and server fields.
 func New(conf Config) (*Service, error) {
 	s := &Service{
-		conf:      conf,
+		Config:    conf,
 		shutdowns: make(chan struct{}),
 	}
 
@@ -71,8 +74,9 @@ func New(conf Config) (*Service, error) {
 	return s, nil
 }
 
+// setupMux sets up the connection multiplexer.
 func (s *Service) setupMux() error {
-	rpcAddr := fmt.Sprintf(":%d", s.conf.RPCPort)
+	rpcAddr := fmt.Sprintf(":%d", s.Config.RPCPort)
 	l, err := net.Listen("tcp", rpcAddr)
 	if err != nil {
 		return err
@@ -81,6 +85,7 @@ func (s *Service) setupMux() error {
 	return nil
 }
 
+// setupStore sets up the raft store.
 func (s *Service) setupStore() error {
 	raftListener := s.mux.Match(func(reader io.Reader) bool {
 		b := make([]byte, 1)
@@ -92,20 +97,22 @@ func (s *Service) setupStore() error {
 
 	conf := store.Config{}
 	conf.Transport = store.NewTransport(raftListener)
-	conf.LocalID = raft.ServerID(s.conf.NodeName)
-	conf.Bootstrap = s.conf.Bootstrap
+	conf.LocalID = raft.ServerID(s.Config.NodeName)
+	conf.Bootstrap = s.Config.Bootstrap
 
 	var err error
 	s.store, err = store.New(conf)
 	if err != nil {
 		return err
 	}
-	if s.conf.Bootstrap {
+	if s.Config.Bootstrap {
 		_, err = s.store.WaitForLeader(3 * time.Second)
 	}
 	return err
 }
 
+// setupServer sets up the grpc server. The grpc server is for clients to interact
+// with the service.
 func (s *Service) setupServer() error {
 	var (
 		opts []grpc.ServerOption
@@ -127,6 +134,7 @@ func (s *Service) setupServer() error {
 	return err
 }
 
+// Close shuts dwon components and leaves the registry cluster.
 func (s *Service) Close() error {
 	s.shutdownlock.Lock()
 	defer s.shutdownlock.Unlock()
@@ -155,28 +163,28 @@ func (s *Service) Close() error {
 	return nil
 }
 
+// serve runs the connection multiplexer to start serving connections.
 func (s *Service) serve() error {
 	if err := s.mux.Serve(); err != nil {
 		s.Close()
 		return err
 	}
-
 	return nil
 }
 
 func (s *Service) setupRegistry() error {
-	rpcAddr, err := s.conf.RPCAddr()
+	rpcAddr, err := s.Config.RPCAddr()
 	if err != nil {
 		return err
 	}
 
 	s.reg, err = registry.New(s.store, registry.Config{
-		NodeName: s.conf.NodeName,
-		BindAddr: s.conf.BindAddr,
+		NodeName: s.Config.NodeName,
+		BindAddr: s.Config.BindAddr,
 		Tags: map[string]string{
 			"rpc_addr": rpcAddr,
 		},
-		StartJoinAddrs: s.conf.StartJoinAddrs,
+		StartJoinAddrs: s.Config.StartJoinAddrs,
 	})
 
 	return err
