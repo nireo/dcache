@@ -26,7 +26,7 @@ func newimpl(c Cache) *grpcImpl {
 func NewServer(cache Cache, grpcOpts ...grpc.ServerOption) (
 	*grpc.Server, error,
 ) {
-	grsv := grpc.NewServer(grpcOpts)
+	grsv := grpc.NewServer(grpcOpts...)
 	srv := newimpl(cache)
 	api.RegisterCacheServer(grsv, srv)
 
