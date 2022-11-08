@@ -89,6 +89,12 @@ func newTestStore(t *testing.T, port, id int, bootstrap bool) (*Store, error) {
 	conf.SnapshotThreshold = 10000
 	conf.DataDir = datadir
 
+	ln, err := net.Listen("tcp", fmt.Sprintf("127.0.0.1:%d", port))
+	require.NoError(t, err)
+	conf.Transport = &Transport{
+		ln: ln,
+	}
+
 	return New(conf)
 }
 

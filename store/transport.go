@@ -13,6 +13,12 @@ type Transport struct {
 	ln net.Listener
 }
 
+func NewTransport(ln net.Listener) *Transport {
+	return &Transport{
+		ln: ln,
+	}
+}
+
 // Dial creates a connection to a given address. This function appends the RaftRPC identifier
 // (1) to the request's beginning such that raft requests can be properly identified.
 func (tn *Transport) Dial(addr raft.ServerAddress, timeout time.Duration) (net.Conn, error) {

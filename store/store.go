@@ -5,7 +5,6 @@ import (
 	"encoding/binary"
 	"errors"
 	"io"
-	"net"
 	"os"
 	"path/filepath"
 	"time"
@@ -64,6 +63,8 @@ type Config struct {
 	ElectionTimeout    time.Duration
 	CommitTimeout      time.Duration
 	LeaderLeaseTimeout time.Duration
+
+	Transport *Transport
 }
 
 type applyResult struct {
@@ -92,16 +93,7 @@ func New(conf Config) (*Store, error) {
 		cache:  cache,
 	}
 
-	addr, err := net.ResolveTCPAddr("tcp", conf.BindAddr)
-	if err != nil {
-		return nil, err
-	}
-
-	transport, err := raft.NewTCPTransport(conf.BindAddr, addr, 10, 10*time.Second, os.Stderr)
-	if err != nil {
-		return nil, err
-	}
-
+	transport := raft.NewNetworkTransport(conf.Transport, 5, 10*time.Second, os.Stderr)
 	stableStore, err := fastlog.NewFastLogStore(":memory:", fastlog.Medium, io.Discard)
 	if err != nil {
 		return nil, err
