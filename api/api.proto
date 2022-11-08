@@ -1,0 +1,23 @@
+syntax = "proto3";
+package api;
+option go_package = "github.com/nireo/dcache/api";
+
+service Cache {
+  rpc Set(SetRequest) returns (Empty);
+  rpc Get(GetRequest) returns (GetResponse);
+}
+
+message SetRequest {
+  string key = 1;
+  bytes value = 2;
+}
+
+message GetRequest {
+  string key = 1;
+}
+
+message GetResponse {
+  bytes value = 1;
+}
+
+message Empty {}
