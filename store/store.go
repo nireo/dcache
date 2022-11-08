@@ -53,17 +53,17 @@ type Store struct {
 }
 
 type Config struct {
-	DataDir   string
-	BindAddr  string
-	Bootstrap bool
-	LocalID   raft.ServerID
+	DataDir           string
+	BindAddr          string
+	Bootstrap         bool
+	LocalID           raft.ServerID
+	SnapshotThreshold uint64
 
 	// Timeouts
 	HeartbeatTimeout   time.Duration
 	ElectionTimeout    time.Duration
 	CommitTimeout      time.Duration
 	LeaderLeaseTimeout time.Duration
-	SnapshotThreshold  uint64
 }
 
 type applyResult struct {
@@ -132,7 +132,14 @@ func New(conf Config) (*Store, error) {
 		config.CommitTimeout = conf.CommitTimeout
 	}
 
-	store.raft, err = raft.NewRaft(config, store, stableStore, stableStore, snapshotStore, transport)
+	store.raft, err = raft.NewRaft(
+		config,
+		store,
+		stableStore,
+		stableStore,
+		snapshotStore,
+		transport,
+	)
 	if err != nil {
 		return nil, err
 	}
