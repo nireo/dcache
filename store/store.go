@@ -140,7 +140,7 @@ func New(conf Config) (*Store, error) {
 		conf := raft.Configuration{
 			Servers: []raft.Server{{
 				ID:      config.LocalID,
-				Address: raft.ServerAddress(conf.BindAddr),
+				Address: raft.ServerAddress(conf.Transport.Addr().String()),
 			}},
 		}
 		err = store.raft.BootstrapCluster(conf).Error()
