@@ -5,3 +5,8 @@ compile:
 		--go_opt=paths=source_relative \
 		--go-grpc_opt=paths=source_relative \
 		--proto_path=.
+
+check:
+	gofumpt -l -w .
+	golines -w .
+	staticcheck ./...
