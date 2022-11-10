@@ -1,6 +1,7 @@
 package service
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -8,10 +9,12 @@ import (
 	"time"
 
 	"github.com/hashicorp/raft"
+	httpd "github.com/nireo/dcache/http"
 	"github.com/nireo/dcache/registry"
 	"github.com/nireo/dcache/server"
 	"github.com/nireo/dcache/store"
 	"github.com/soheilhy/cmux"
+	"github.com/valyala/fasthttp"
 	"google.golang.org/grpc"
 )
 
@@ -23,6 +26,10 @@ type Config struct {
 	StartJoinAddrs []string // addresses to join to
 	Bootstrap      bool     // should bootstrap cluster?
 	NodeName       string   // raft server id
+
+	// Enable different communications protocols for clients
+	EnableHTTP bool
+	EnableGRPC bool
 }
 
 // RPCAddr returns the host:RPCPort string
@@ -55,11 +62,19 @@ func New(conf Config) (*Service, error) {
 		Config:    conf,
 		shutdowns: make(chan struct{}),
 	}
+	s.Config.EnableGRPC = true // for now gRPC always on such until HTTP is integrated properly.
+
+	// check that either HTTP or gRPC is enabled. Otherwise user cannot really
+	// interact with the cluster.
+	if !s.Config.EnableGRPC && !s.Config.EnableHTTP {
+		return nil, errors.New("no communication available for clients")
+	}
 
 	setupFns := []func() error{
 		s.setupMux,
 		s.setupStore,
 		s.setupServer,
+		s.setupHTTP,
 		s.setupRegistry,
 	}
 
@@ -187,4 +202,24 @@ func (s *Service) setupRegistry() error {
 	})
 
 	return err
+}
+
+// setupHTTP sets up a HTTP handler to interact with the store.
+func (s *Service) setupHTTP() error {
+	if !s.Config.EnableHTTP {
+		return nil
+	}
+
+	httpListener := s.mux.Match(cmux.HTTP2())
+
+	httpServer, err := httpd.New(s.store)
+	if err != nil {
+		return err
+	}
+
+	go func() {
+		go fasthttp.Serve(httpListener, httpServer.Handler)
+	}()
+
+	return nil
 }

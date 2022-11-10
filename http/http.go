@@ -1,5 +1,7 @@
 package http
 
+// http.go - A very simple HTTP interface to interact with the store.
+
 import (
 	"github.com/nireo/dcache/store"
 	"github.com/valyala/fasthttp"
@@ -7,14 +9,20 @@ import (
 
 type Server struct {
 	store *store.Store
-	addr  string
 }
 
-func New(s *store.Store, addr string) (*Server, error) {
-	return &Server{store: s, addr: addr}, nil
+// New creates a Server instance with given raft store.
+func New(s *store.Store) (*Server, error) {
+	return &Server{store: s}, nil
 }
 
-func (s *Server) handler(ctx *fasthttp.RequestCtx) {
+// Handler handles HTTP requests in the following way:
+//
+//   - POST = Create entry, key is the request URI so 'localhost:0/testkey' key = "testkey"
+//     and the body of the request will be the key-value pair's value.
+//
+//   - GET = Same thing with keys, but the value will be written as a response.
+func (s *Server) Handler(ctx *fasthttp.RequestCtx) {
 	key := string(ctx.RequestURI()[1:])
 	if ctx.IsPost() {
 		var postData []byte
@@ -37,8 +45,4 @@ func (s *Server) handler(ctx *fasthttp.RequestCtx) {
 
 	ctx.Write(data)
 	ctx.SetStatusCode(fasthttp.StatusOK)
-}
-
-func (s *Server) Start() error {
-	return fasthttp.ListenAndServe(s.addr, s.handler)
 }
