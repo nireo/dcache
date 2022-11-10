@@ -11,6 +11,7 @@ import (
 
 	"github.com/allegro/bigcache/v3"
 	"github.com/hashicorp/raft"
+	"github.com/nireo/dcache/api"
 	fastlog "github.com/tidwall/raft-fastlog"
 	"go.uber.org/zap"
 )
@@ -334,4 +335,22 @@ func (s *Store) WaitForLeader(t time.Duration) (string, error) {
 			return "", errors.New("wait for leader timeout expired")
 		}
 	}
+}
+
+func (s *Store) GetServers() ([]*api.Server, error) {
+	f := s.raft.GetConfiguration()
+	if err := f.Error(); err != nil {
+		return nil, err
+	}
+
+	var srvs []*api.Server
+	for _, srv := range f.Configuration().Servers {
+		srvs = append(srvs, &api.Server{
+			Id:       string(srv.ID),
+			RpcAddr:  string(srv.Address),
+			IsLeader: s.raft.Leader() == srv.Address,
+		})
+	}
+
+	return srvs, nil
 }

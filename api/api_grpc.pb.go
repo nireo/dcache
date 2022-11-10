@@ -24,6 +24,7 @@ const _ = grpc.SupportPackageIsVersion7
 type CacheClient interface {
 	Set(ctx context.Context, in *SetRequest, opts ...grpc.CallOption) (*Empty, error)
 	Get(ctx context.Context, in *GetRequest, opts ...grpc.CallOption) (*GetResponse, error)
+	GetServers(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*GetServer, error)
 }
 
 type cacheClient struct {
@@ -52,12 +53,22 @@ func (c *cacheClient) Get(ctx context.Context, in *GetRequest, opts ...grpc.Call
 	return out, nil
 }
 
+func (c *cacheClient) GetServers(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*GetServer, error) {
+	out := new(GetServer)
+	err := c.cc.Invoke(ctx, "/api.Cache/GetServers", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // CacheServer is the server API for Cache service.
 // All implementations must embed UnimplementedCacheServer
 // for forward compatibility
 type CacheServer interface {
 	Set(context.Context, *SetRequest) (*Empty, error)
 	Get(context.Context, *GetRequest) (*GetResponse, error)
+	GetServers(context.Context, *Empty) (*GetServer, error)
 	mustEmbedUnimplementedCacheServer()
 }
 
@@ -70,6 +81,9 @@ func (UnimplementedCacheServer) Set(context.Context, *SetRequest) (*Empty, error
 }
 func (UnimplementedCacheServer) Get(context.Context, *GetRequest) (*GetResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Get not implemented")
+}
+func (UnimplementedCacheServer) GetServers(context.Context, *Empty) (*GetServer, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetServers not implemented")
 }
 func (UnimplementedCacheServer) mustEmbedUnimplementedCacheServer() {}
 
@@ -120,6 +134,24 @@ func _Cache_Get_Handler(srv interface{}, ctx context.Context, dec func(interface
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Cache_GetServers_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Empty)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(CacheServer).GetServers(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/api.Cache/GetServers",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(CacheServer).GetServers(ctx, req.(*Empty))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // Cache_ServiceDesc is the grpc.ServiceDesc for Cache service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -134,6 +166,10 @@ var Cache_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Get",
 			Handler:    _Cache_Get_Handler,
+		},
+		{
+			MethodName: "GetServers",
+			Handler:    _Cache_GetServers_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

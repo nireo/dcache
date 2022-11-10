@@ -16,3 +16,6 @@ dcache:
 
 dcache-stripped:
 	go build -o dcache -ldflags="-s -w" ./cmd/dcache/main.go
+
+test:
+	go test -v ./...

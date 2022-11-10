@@ -5,6 +5,7 @@ option go_package = "github.com/nireo/dcache/api";
 service Cache {
   rpc Set(SetRequest) returns (Empty);
   rpc Get(GetRequest) returns (GetResponse);
+  rpc GetServers(Empty) returns (GetServer);
 }
 
 message SetRequest {
@@ -21,3 +22,13 @@ message GetResponse {
 }
 
 message Empty {}
+
+message Server {
+  string id = 1;
+  string rpc_addr = 2;
+  bool is_leader = 3;
+}
+
+message GetServer {
+  repeated Server server = 1;
+}

@@ -15,8 +15,7 @@ import (
 	"google.golang.org/grpc"
 )
 
-// Service is what combines all of the things together.
-
+// Config handles all of the customizable values for Service.
 type Config struct {
 	DataDir        string   // where to store raft data.
 	BindAddr       string   // serf addr.
