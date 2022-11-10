@@ -27,6 +27,8 @@ message Server {
   string id = 1;
   string rpc_addr = 2;
   bool is_leader = 3;
+  // suffrage but this wording is simpler
+  string vote_status = 4; 
 }
 
 message GetServer {

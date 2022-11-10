@@ -183,9 +183,7 @@ func (s *Store) remove(id string) error {
 	return nil
 }
 
-// Join adds a node with 'id' and 'addr' into the raft cluster. The address is the
-// raft bind address of the node.
-func (s *Store) Join(id, addr string) error {
+func (s *Store) joinHelper(id, addr string, voter bool) error {
 	s.logger.Info("join request", zap.String("id", id), zap.String("addr", addr))
 
 	// only leader can make modifications to the cluster.
@@ -218,14 +216,31 @@ func (s *Store) Join(id, addr string) error {
 		}
 	}
 
-	addFuture := s.raft.AddVoter(srvID, srvAddr, 0, 0)
-	if err := addFuture.Error(); err != nil {
-		s.logger.Error("failed adding voter", zap.Error(err))
-		return err
+	var addFuture raft.IndexFuture
+	if voter {
+		addFuture = s.raft.AddVoter(srvID, srvAddr, 0, 0)
+	} else {
+		addFuture = s.raft.AddNonvoter(srvID, srvAddr, 0, 0)
+	}
+
+	if f := addFuture.(raft.Future); f.Error() != nil {
+		return f.Error()
 	}
 
 	s.logger.Info("node joined successfully", zap.String("id", id), zap.String("addr", addr))
 	return nil
+}
+
+// JoinNonVoter adds a node that cannot write into the cluster. These are useful for
+// adding more reability to reads.
+func (s *Store) JoinNonVoter(id, addr string) error {
+	return s.joinHelper(id, addr, true)
+}
+
+// Join adds a node with 'id' and 'addr' into the raft cluster. The address is the
+// raft bind address of the node.
+func (s *Store) Join(id, addr string) error {
+	return s.joinHelper(id, addr, false)
 }
 
 // Leave removes a node from the cluster with the given id.
@@ -343,12 +358,14 @@ func (s *Store) GetServers() ([]*api.Server, error) {
 		return nil, err
 	}
 
-	var srvs []*api.Server
-	for _, srv := range f.Configuration().Servers {
+	ss := f.Configuration().Servers
+	srvs := make([]*api.Server, len(ss))
+	for i := range ss {
 		srvs = append(srvs, &api.Server{
-			Id:       string(srv.ID),
-			RpcAddr:  string(srv.Address),
-			IsLeader: s.raft.Leader() == srv.Address,
+			Id:         string(ss[i].ID),
+			RpcAddr:    string(ss[i].Address),
+			IsLeader:   s.raft.Leader() == ss[i].Address,
+			VoteStatus: ss[i].Suffrage.String(),
 		})
 	}
 
