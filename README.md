@@ -46,3 +46,28 @@ Flags:
 
 Now you can connect to the server using a gRPC client. (HTTP support coming soon)
 
+## Using the client
+
+Quick overview of the configuration flags:
+
+```
+Usage of ./dcache-client:
+  -addr string
+    	Address for the gRPC server (default "localhost:9200")
+  -get-servers
+    	If set to true, retrieve raft servers instead of writing a key-value pair into cache.
+  -key string
+      The key to be used with stdin to write a key-value pair. 
+```
+
+### Examples
+
+```
+# get all servers in raft cluster.
+./client --get-servers --addr="localhost:9001"
+```
+
+```
+# write a file into the cache.
+./client --key="cachedfile123" < path/to/file
+```

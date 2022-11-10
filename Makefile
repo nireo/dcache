@@ -14,6 +14,9 @@ check:
 dcache:
 	go build -o dcache ./cmd/dcache/main.go
 
+client:
+	go build -o dcache-client ./cmd/client/main.go
+
 dcache-stripped:
 	go build -o dcache -ldflags="-s -w" ./cmd/dcache/main.go
 
