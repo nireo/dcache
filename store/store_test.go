@@ -74,10 +74,6 @@ func newTestStore(t *testing.T, port, id int, bootstrap bool) (*Store, error) {
 	datadir, err := os.MkdirTemp("", "store-test")
 	require.NoError(t, err)
 
-	t.Cleanup(func() {
-		os.RemoveAll(datadir)
-	})
-
 	conf := Config{}
 	conf.BindAddr = fmt.Sprintf("localhost:%d", port)
 	conf.LocalID = raft.ServerID(fmt.Sprintf("%d", id))
@@ -95,7 +91,17 @@ func newTestStore(t *testing.T, port, id int, bootstrap bool) (*Store, error) {
 		ln: ln,
 	}
 
-	return New(conf)
+	s, err := New(conf)
+	if err != nil {
+		return nil, err
+	}
+
+	t.Cleanup(func() {
+		os.RemoveAll(datadir)
+		s.Close()
+	})
+
+	return s, nil
 }
 
 func TestSingleNode(t *testing.T) {
@@ -113,4 +119,16 @@ func TestSingleNode(t *testing.T) {
 	require.NoError(t, err)
 
 	require.Equal(t, []byte("garbage"), val)
+}
+
+func TestJoinSelf(t *testing.T) {
+	port, _ := getFreePort()
+
+	store, err := newTestStore(t, port, 1, true)
+	require.NoError(t, err)
+
+	store.WaitForLeader(3 * time.Second)
+
+	err = store.Join("1", "localhost:1234")
+	require.Equal(t, ErrJoiningSelf, err)
 }

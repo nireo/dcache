@@ -21,6 +21,8 @@ const (
 	GetOperation
 )
 
+var ErrJoiningSelf = errors.New("trying to join self")
+
 // don't need a complicated serializer/deserializer since our data format is
 // quite simple.
 func serializeEntry(flag byte, key string, val []byte) []byte {
@@ -45,6 +47,7 @@ func deserializeEntry(buf []byte) (byte, string, []byte) {
 }
 
 type Store struct {
+	conf    Config
 	raft    *raft.Raft
 	raftDir string
 	logger  *zap.Logger
@@ -92,6 +95,7 @@ func New(conf Config) (*Store, error) {
 		raft:   nil,
 		logger: logger,
 		cache:  cache,
+		conf:   conf,
 	}
 
 	transport := raft.NewNetworkTransport(conf.Transport, 5, 10*time.Second, os.Stderr)
@@ -193,6 +197,10 @@ func (s *Store) joinHelper(id, addr string, voter bool) error {
 
 	srvID := raft.ServerID(id)
 	srvAddr := raft.ServerAddress(addr)
+
+	if srvID == s.conf.LocalID {
+		return ErrJoiningSelf
+	}
 
 	f := s.raft.GetConfiguration()
 	if err := f.Error(); err != nil {
