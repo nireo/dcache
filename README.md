@@ -72,3 +72,19 @@ Usage of ./dcache-client:
 ./client --key="cachedfile123" < path/to/file
 ```
 
+## HTTP Server
+
+dcache also supports a HTTP interface. It is enabled by passing the `--http` flag into the `dcache` server binary. Note that you have to choose between either gRPC or HTTP since dcache doesn't support running them at the same time.
+
+### Usage
+
+The server only supports `GET` and `POST` methods. Few examples will help you understand how the routes work:
+
+```
+# write the value "this is the value" with key "hello" in the cache.
+curl -v -X POST -d 'this is the value' http://localhost:9200/hello
+
+# get key from cache
+curl -v http://localhost:9200/hello
+```
+
