@@ -71,3 +71,8 @@ Usage of ./dcache-client:
 # write a file into the cache.
 ./client --key="cachedfile123" < path/to/file
 ```
+
+## TODO:
+
+- Fix snapshots so that server doesn't segfault for no reason.
+- Fix segfaults when giving quit signal. aka CTRL-C

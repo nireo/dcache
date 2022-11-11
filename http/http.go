@@ -26,7 +26,7 @@ func (s *Server) Handler(ctx *fasthttp.RequestCtx) {
 	key := string(ctx.RequestURI()[1:])
 	if ctx.IsPost() {
 		var postData []byte
-		copy(postData, ctx.PostBody())
+		postData = append(postData, ctx.PostBody()...)
 
 		err := s.store.Set(key, postData)
 		if err != nil {
@@ -43,6 +43,7 @@ func (s *Server) Handler(ctx *fasthttp.RequestCtx) {
 		return
 	}
 
-	ctx.Write(data)
+	ctx.SetContentType("text/plain")
 	ctx.SetStatusCode(fasthttp.StatusOK)
+	ctx.SetBody(data)
 }

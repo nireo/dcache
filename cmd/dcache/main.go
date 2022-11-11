@@ -53,6 +53,7 @@ func parseFlags(cmd *cobra.Command) error {
 		StringSlice("join", nil, "Existing addresses in the cluster where you want this node to attempt connection")
 	cmd.Flags().Bool("bootstrap", false, "Whether this node should bootstrap the cluster.")
 	cmd.Flags().String("addr", "127.0.0.1:9000", "Address where serf is binded.")
+	cmd.Flags().Bool("http", false, "Enable a HTTP server")
 
 	if err := viper.BindPFlags(cmd.Flags()); err != nil {
 		return err
@@ -63,7 +64,7 @@ func parseFlags(cmd *cobra.Command) error {
 func (c *config) setupConf(cmd *cobra.Command, args []string) error {
 	// try overriding flag values with values from a config file. However this config might not
 	// exist. We need to check if the config file is valid; if not just use the flag values.
-	confFile, err := cmd.Flags().GetString("config-file")
+	confFile, err := cmd.Flags().GetString("conf")
 	if err != nil {
 		return err
 	}
@@ -82,6 +83,8 @@ func (c *config) setupConf(cmd *cobra.Command, args []string) error {
 	c.RPCPort = viper.GetInt("rpc-port")
 	c.Bootstrap = viper.GetBool("bootstrap")
 	c.StartJoinAddrs = viper.GetStringSlice("join")
+	c.EnableHTTP = viper.GetBool("http")
+	c.NodeName = viper.GetString("id")
 
 	return nil
 }

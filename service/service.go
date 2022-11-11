@@ -62,7 +62,7 @@ func New(conf Config) (*Service, error) {
 		Config:    conf,
 		shutdowns: make(chan struct{}),
 	}
-	s.Config.EnableGRPC = true // for now gRPC always on such until HTTP is integrated properly.
+	// s.Config.EnableGRPC = true // for now gRPC always on such until HTTP is integrated properly.
 
 	// check that either HTTP or gRPC is enabled. Otherwise user cannot really
 	// interact with the cluster.
@@ -128,6 +128,10 @@ func (s *Service) setupStore() error {
 // setupServer sets up the grpc server. The grpc server is for clients to interact
 // with the service.
 func (s *Service) setupServer() error {
+	if !s.Config.EnableGRPC {
+		return nil
+	}
+
 	var (
 		opts []grpc.ServerOption
 		err  error
@@ -210,13 +214,12 @@ func (s *Service) setupHTTP() error {
 		return nil
 	}
 
-	httpListener := s.mux.Match(cmux.HTTP2())
-
 	httpServer, err := httpd.New(s.store)
 	if err != nil {
 		return err
 	}
 
+	httpListener := s.mux.Match(cmux.Any())
 	go func() {
 		go fasthttp.Serve(httpListener, httpServer.Handler)
 	}()
