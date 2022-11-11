@@ -166,7 +166,9 @@ func (s *Service) Close() error {
 	closeFns := []func() error{
 		s.reg.Leave,
 		func() error {
-			s.server.GracefulStop()
+			if s.Config.EnableGRPC {
+				s.server.GracefulStop()
+			}
 			return nil
 		},
 		s.store.Close,

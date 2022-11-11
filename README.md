@@ -75,4 +75,3 @@ Usage of ./dcache-client:
 ## TODO:
 
 - Fix snapshots so that server doesn't segfault for no reason.
-- Fix segfaults when giving quit signal. aka CTRL-C
