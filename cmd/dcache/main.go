@@ -53,7 +53,8 @@ func parseFlags(cmd *cobra.Command) error {
 		StringSlice("join", nil, "Existing addresses in the cluster where you want this node to attempt connection")
 	cmd.Flags().Bool("bootstrap", false, "Whether this node should bootstrap the cluster.")
 	cmd.Flags().String("addr", "127.0.0.1:9000", "Address where serf is binded.")
-	cmd.Flags().Bool("http", false, "Enable a HTTP server")
+	cmd.Flags().Bool("http", false, "Enable HTTP server for client communication")
+	cmd.Flags().Bool("grpc", false, "Enable gRPC server for client communication")
 
 	if err := viper.BindPFlags(cmd.Flags()); err != nil {
 		return err

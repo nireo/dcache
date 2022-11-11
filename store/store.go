@@ -247,13 +247,13 @@ func (s *Store) joinHelper(id, addr string, voter bool) error {
 // JoinNonVoter adds a node that cannot write into the cluster. These are useful for
 // adding more reability to reads.
 func (s *Store) JoinNonVoter(id, addr string) error {
-	return s.joinHelper(id, addr, true)
+	return s.joinHelper(id, addr, false)
 }
 
 // Join adds a node with 'id' and 'addr' into the raft cluster. The address is the
 // raft bind address of the node.
 func (s *Store) Join(id, addr string) error {
-	return s.joinHelper(id, addr, false)
+	return s.joinHelper(id, addr, true)
 }
 
 // Leave removes a node from the cluster with the given id.

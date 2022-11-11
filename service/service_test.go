@@ -71,6 +71,8 @@ func TestServ(t *testing.T) {
 			BindAddr:       bindaddr,
 			DataDir:        datadir,
 			RPCPort:        rpcPort,
+			EnableGRPC:     true,
+			EnableHTTP:     false,
 		})
 		require.NoError(t, err)
 
@@ -110,4 +112,18 @@ func TestServ(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.Equal(t, []byte("value1"), r.Value)
+}
+
+func TestNoCommunication(t *testing.T) {
+	_, err := service.New(service.Config{
+		NodeName:       "node",
+		Bootstrap:      true,
+		StartJoinAddrs: nil,
+		BindAddr:       "localhost:8080",
+		DataDir:        "./data",
+		RPCPort:        9200,
+		EnableGRPC:     false,
+	})
+	require.Error(t, err)
+	require.Equal(t, service.ErrNoCommunication, err)
 }

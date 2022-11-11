@@ -18,6 +18,8 @@ import (
 	"google.golang.org/grpc"
 )
 
+var ErrNoCommunication = errors.New("no communication pathways for clients")
+
 // Config handles all of the customizable values for Service.
 type Config struct {
 	DataDir        string   // where to store raft data.
@@ -67,7 +69,7 @@ func New(conf Config) (*Service, error) {
 	// check that either HTTP or gRPC is enabled. Otherwise user cannot really
 	// interact with the cluster.
 	if !s.Config.EnableGRPC && !s.Config.EnableHTTP {
-		return nil, errors.New("no communication available for clients")
+		return nil, ErrNoCommunication
 	}
 
 	setupFns := []func() error{
@@ -221,10 +223,8 @@ func (s *Service) setupHTTP() error {
 		return err
 	}
 
-	httpListener := s.mux.Match(cmux.Any())
-	go func() {
-		go fasthttp.Serve(httpListener, httpServer.Handler)
-	}()
+	httpListener := s.mux.Match(cmux.HTTP1Fast())
+	go fasthttp.Serve(httpListener, httpServer.Handler)
 
 	return nil
 }
