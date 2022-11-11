@@ -11,6 +11,7 @@ import (
 	"github.com/nireo/dcache/server"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 func setupTest(t *testing.T, fn func(server.Cache)) (
@@ -21,7 +22,7 @@ func setupTest(t *testing.T, fn func(server.Cache)) (
 	l, err := net.Listen("tcp", ":0")
 	require.NoError(t, err)
 
-	clientOptions := []grpc.DialOption{grpc.WithInsecure()}
+	clientOptions := []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())}
 	cc, err := grpc.Dial(l.Addr().String(), clientOptions...)
 	require.NoError(t, err)
 
@@ -55,7 +56,6 @@ func TestSetGet(t *testing.T) {
 		Value: []byte("testvalue"),
 	})
 	require.NoError(t, err)
-
 	res, err := client.Get(ctx, &api.GetRequest{
 		Key: "testkey",
 	})

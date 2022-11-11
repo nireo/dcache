@@ -10,6 +10,7 @@ import (
 
 	"github.com/nireo/dcache/api"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 func main() {
@@ -23,7 +24,7 @@ func main() {
 	key := flag.String("key", "", "Key for set operation.")
 	flag.Parse()
 
-	conn, err := grpc.Dial(*addr, grpc.WithInsecure())
+	conn, err := grpc.Dial(*addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		log.Fatalf("cannot dial addr: %s", err)
 	}

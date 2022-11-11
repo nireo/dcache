@@ -12,6 +12,7 @@ import (
 	"github.com/nireo/dcache/service"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 func getFreePort() (int, error) {
@@ -38,7 +39,7 @@ func genNPorts(n int) []int {
 }
 
 func createClient(t *testing.T, serv *service.Service) api.CacheClient {
-	opts := []grpc.DialOption{grpc.WithInsecure()}
+	opts := []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())}
 	rpcaddr, err := serv.Config.RPCAddr()
 	require.NoError(t, err)
 

@@ -62,14 +62,6 @@ func getFreePort() (int, error) {
 	return l.Addr().(*net.TCPAddr).Port, nil
 }
 
-func genNPorts(n int) []int {
-	ports := make([]int, n)
-	for i := 0; i < n; i++ {
-		ports[i], _ = getFreePort()
-	}
-	return ports
-}
-
 func newTestStore(t *testing.T, port, id int, bootstrap bool) (*Store, error) {
 	datadir, err := os.MkdirTemp("", "store-test")
 	require.NoError(t, err)

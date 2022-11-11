@@ -23,6 +23,11 @@ func New(s *store.Store) (*Server, error) {
 //
 //   - GET = Same thing with keys, but the value will be written as a response.
 func (s *Server) Handler(ctx *fasthttp.RequestCtx) {
+	if !ctx.IsPost() && !ctx.IsGet() {
+		ctx.Error("only post or get request", fasthttp.StatusMethodNotAllowed)
+		return
+	}
+
 	key := string(ctx.RequestURI()[1:])
 	if ctx.IsPost() {
 		var postData []byte
@@ -43,7 +48,6 @@ func (s *Server) Handler(ctx *fasthttp.RequestCtx) {
 		return
 	}
 
-	ctx.SetContentType("text/plain")
 	ctx.SetStatusCode(fasthttp.StatusOK)
 	ctx.SetBody(data)
 }

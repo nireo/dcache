@@ -64,7 +64,6 @@ func New(conf Config) (*Service, error) {
 		Config:    conf,
 		shutdowns: make(chan struct{}),
 	}
-	// s.Config.EnableGRPC = true // for now gRPC always on such until HTTP is integrated properly.
 
 	// check that either HTTP or gRPC is enabled. Otherwise user cannot really
 	// interact with the cluster.
@@ -150,8 +149,7 @@ func (s *Service) setupServer() error {
 			s.Close()
 		}
 	}()
-
-	return err
+	return nil
 }
 
 // Close shuts dwon components and leaves the registry cluster.
@@ -194,6 +192,7 @@ func (s *Service) serve() error {
 	return nil
 }
 
+// setupRegistry sets up the service discovery module.
 func (s *Service) setupRegistry() error {
 	rpcAddr, err := s.Config.RPCAddr()
 	if err != nil {
