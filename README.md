@@ -72,6 +72,3 @@ Usage of ./dcache-client:
 ./client --key="cachedfile123" < path/to/file
 ```
 
-## TODO:
-
-- Fix snapshots so that server doesn't segfault for no reason.

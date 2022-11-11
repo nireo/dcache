@@ -71,6 +71,11 @@ type Config struct {
 	Transport *Transport
 }
 
+type snapshot struct {
+	start time.Time
+	cache *bigcache.BigCache
+}
+
 type applyResult struct {
 	res any
 	err error
@@ -333,12 +338,41 @@ func (s *Store) Get(key string) ([]byte, error) {
 }
 
 func (s *Store) Snapshot() (raft.FSMSnapshot, error) {
-	return nil, nil
+	return &snapshot{
+		start: time.Now(),
+		cache: s.cache,
+	}, nil
 }
 
 func (s *Store) Restore(rc io.ReadCloser) error {
+	// TODO
 	return nil
 }
+
+func (s *snapshot) Persist(sink raft.SnapshotSink) error {
+	err := func() error {
+		iter := s.cache.Iterator()
+
+		for iter.SetNext() {
+			curr, err := iter.Value()
+			if err != nil {
+				return err
+			}
+
+			if _, err = sink.Write(serializeEntry(SetOperation, curr.Key(), curr.Value())); err != nil {
+				return err
+			}
+		}
+
+		return nil
+	}()
+	if err != nil {
+		sink.Cancel()
+	}
+	return err
+}
+
+func (s *snapshot) Release() {}
 
 func (s *Store) WaitForLeader(t time.Duration) (string, error) {
 	ticker := time.NewTicker(100 * time.Millisecond)
@@ -369,12 +403,12 @@ func (s *Store) GetServers() ([]*api.Server, error) {
 	ss := f.Configuration().Servers
 	srvs := make([]*api.Server, len(ss))
 	for i := range ss {
-		srvs = append(srvs, &api.Server{
+		srvs[i] = &api.Server{
 			Id:         string(ss[i].ID),
 			RpcAddr:    string(ss[i].Address),
 			IsLeader:   s.raft.Leader() == ss[i].Address,
 			VoteStatus: ss[i].Suffrage.String(),
-		})
+		}
 	}
 
 	return srvs, nil
