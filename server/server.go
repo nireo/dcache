@@ -43,6 +43,18 @@ func NewServer(cache Cache, grpcOpts ...grpc.ServerOption) (
 	return grsv, nil
 }
 
+// NewServer returns a grpc.Server with the given options applied.
+func NewServerWithGetter(cache Cache, getter ServerFinder, grpcOpts ...grpc.ServerOption) (
+	*grpc.Server, error,
+) {
+	grsv := grpc.NewServer(grpcOpts...)
+	srv := newimpl(cache)
+	srv.sf = getter
+	api.RegisterCacheServer(grsv, srv)
+
+	return grsv, nil
+}
+
 // Set handles Set requests by calling the internal Cache's Set function
 func (s *grpcImpl) Set(ctx context.Context, req *api.SetRequest) (
 	*api.Empty, error,

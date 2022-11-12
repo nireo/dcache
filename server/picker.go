@@ -16,6 +16,12 @@ type Picker struct {
 	curr      uint64
 }
 
+func init() {
+	balancer.Register(
+		base.NewBalancerBuilder(ResolverName, &Picker{}, base.Config{}),
+	)
+}
+
 func (p *Picker) Build(buildInfo base.PickerBuildInfo) balancer.Picker {
 	p.Lock()
 	defer p.Unlock()
