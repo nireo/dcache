@@ -1,9 +1,12 @@
 package service_test
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"net"
+	"net/http"
 	"os"
 	"testing"
 	"time"
@@ -49,7 +52,20 @@ func createClient(t *testing.T, serv *service.Service) api.CacheClient {
 	return api.NewCacheClient(conn)
 }
 
-func TestServ(t *testing.T) {
+func httpGetHelper(t *testing.T, addr string) []byte {
+	t.Helper()
+
+	resp, err := http.Get(addr)
+	require.NoError(t, err)
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+
+	return body
+}
+
+func setupNServices(t *testing.T, n int, wanthttp bool) []*service.Service {
 	var services []*service.Service
 
 	for i := 0; i < 3; i++ {
@@ -72,22 +88,26 @@ func TestServ(t *testing.T) {
 			BindAddr:       bindaddr,
 			DataDir:        datadir,
 			RPCPort:        rpcPort,
-			EnableGRPC:     true,
-			EnableHTTP:     false,
+			EnableGRPC:     !wanthttp,
+			EnableHTTP:     wanthttp,
 		})
 		require.NoError(t, err)
 
 		services = append(services, service)
 	}
 
-	defer func() {
-		// cleanup
+	t.Cleanup(func() {
 		for _, s := range services {
 			s.Close()
 			require.NoError(t, os.RemoveAll(s.Config.DataDir))
 		}
-	}()
+	})
 
+	return services
+}
+
+func TestGRPC(t *testing.T) {
+	services := setupNServices(t, 3, false)
 	// give some time for the cluster to setup
 	time.Sleep(3 * time.Second)
 
@@ -113,6 +133,34 @@ func TestServ(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.Equal(t, []byte("value1"), r.Value)
+}
+
+func TestHTTP(t *testing.T) {
+	services := setupNServices(t, 3, true)
+	time.Sleep(3 * time.Second)
+
+	leaderAddr, err := services[0].Config.RPCAddr()
+	require.NoError(t, err)
+
+	resp, err := http.Post(
+		fmt.Sprintf("http://%s/testkey", leaderAddr),
+		"text/plain",
+		bytes.NewBuffer([]byte("testval")),
+	)
+	require.NoError(t, err)
+	defer resp.Body.Close()
+
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+
+	body := httpGetHelper(t, fmt.Sprintf("http://%s/testkey", leaderAddr))
+	require.Equal(t, []byte("testval"), body)
+
+	time.Sleep(1 * time.Second)
+
+	followerAddr, err := services[1].Config.RPCAddr()
+	require.NoError(t, err)
+	body = httpGetHelper(t, fmt.Sprintf("http://%s/testkey", followerAddr))
+	require.Equal(t, []byte("testval"), body)
 }
 
 func TestNoCommunication(t *testing.T) {
