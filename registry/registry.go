@@ -7,6 +7,7 @@ import (
 	"go.uber.org/zap"
 )
 
+// Config has all the configurable fields for Registry.
 type Config struct {
 	NodeName       string
 	BindAddr       string
@@ -14,11 +15,16 @@ type Config struct {
 	StartJoinAddrs []string
 }
 
+// Handler represents a interface to a internal handler that also needs information about
+// any possible joins or leaves. In actual use the store.Store is passed here because Raft
+// needs to know of any possible changes to the cluster.
 type Handler interface {
 	Join(id, addr string) error
 	Leave(id string) error
 }
 
+// Registry handles service discovery by using serf. Registry helps with managing a
+// cluster.
 type Registry struct {
 	Config
 	handler Handler
@@ -27,6 +33,9 @@ type Registry struct {
 	logger  *zap.Logger
 }
 
+// New creates a registry instance and sets up serf for service discovery. This function
+// starts up the whole registry functionality by running an event handler, connection to
+// existing nodes and managing possible joins/leaves.
 func New(handler Handler, config Config) (*Registry, error) {
 	r := &Registry{
 		Config:  config,
@@ -41,6 +50,9 @@ func New(handler Handler, config Config) (*Registry, error) {
 	return r, nil
 }
 
+// setupSerf sets up a listener, configuration and event channel for serf to use. It
+// also attemps to connect to any nodes listed in StartJoinAddrs. It also starts the
+// eventHandler in a goroutine to handle any incoming serf events.
 func (r *Registry) setupSerf() error {
 	addr, err := net.ResolveTCPAddr("tcp", r.BindAddr)
 	if err != nil {
@@ -56,7 +68,7 @@ func (r *Registry) setupSerf() error {
 	r.events = make(chan serf.Event)
 	config.EventCh = r.events
 	config.Tags = r.Tags
-	config.NodeName = r.Config.NodeName
+	config.NodeName = r.NodeName
 
 	r.serf, err = serf.Create(config)
 	if err != nil {
@@ -73,6 +85,9 @@ func (r *Registry) setupSerf() error {
 	return nil
 }
 
+// eventHandler is run concurrently and it listens for items in the event channel.
+// Then events that arrive in the event channel are handled. The only events that
+// matter here are serf.EventMemberJoin and serv.EventMemberLeave
 func (r *Registry) eventHandler() {
 	for e := range r.events {
 		switch e.EventType() {
@@ -94,12 +109,14 @@ func (r *Registry) eventHandler() {
 	}
 }
 
+// handleJoin sends information to the internal handler to add given node to the cluster.
 func (r *Registry) handleJoin(member serf.Member) {
 	if err := r.handler.Join(member.Name, member.Tags["rpc_addr"]); err != nil {
 		r.logError(err, "failed to join", member)
 	}
 }
 
+// handleLeave sends information to the internal handler to remove given node.
 func (r *Registry) handleLeave(member serf.Member) {
 	if err := r.handler.Leave(member.Name); err != nil {
 		r.logError(err, "failed to leave", member)

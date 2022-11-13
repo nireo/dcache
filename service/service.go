@@ -44,6 +44,16 @@ func (c *Config) RPCAddr() (string, error) {
 	return fmt.Sprintf("%s:%d", host, c.RPCPort), nil
 }
 
+// HTTPAddr returns the HTTP address to the server.
+func (c *Config) HTTPAddr() (string, error) {
+	host, _, err := net.SplitHostPort(c.BindAddr)
+	if err != nil {
+		return "", err
+	}
+
+	return fmt.Sprintf("http://%s:%d", host, c.RPCPort), nil
+}
+
 // Service handles combining every component of the system.
 type Service struct {
 	Config Config
