@@ -65,7 +65,12 @@ func httpGetHelper(t *testing.T, addr string) []byte {
 	return body
 }
 
-func setupNServices(t *testing.T, n int, wanthttp bool) []*service.Service {
+type setupConf struct {
+	enablehttp bool
+	enablegrpc bool
+}
+
+func setupNServices(t *testing.T, n int, conf setupConf) []*service.Service {
 	var services []*service.Service
 
 	for i := 0; i < 3; i++ {
@@ -88,8 +93,8 @@ func setupNServices(t *testing.T, n int, wanthttp bool) []*service.Service {
 			BindAddr:       bindaddr,
 			DataDir:        datadir,
 			RPCPort:        rpcPort,
-			EnableGRPC:     !wanthttp,
-			EnableHTTP:     wanthttp,
+			EnableGRPC:     conf.enablegrpc,
+			EnableHTTP:     conf.enablehttp,
 		})
 		require.NoError(t, err)
 
@@ -107,9 +112,12 @@ func setupNServices(t *testing.T, n int, wanthttp bool) []*service.Service {
 }
 
 func TestGRPC(t *testing.T) {
-	services := setupNServices(t, 3, false)
+	services := setupNServices(t, 3, setupConf{
+		enablehttp: false,
+		enablegrpc: true,
+	})
 	// give some time for the cluster to setup
-	time.Sleep(3 * time.Second)
+	time.Sleep(2 * time.Second)
 
 	leaderClient := createClient(t, services[0])
 	_, err := leaderClient.Set(context.Background(), &api.SetRequest{
@@ -136,7 +144,10 @@ func TestGRPC(t *testing.T) {
 }
 
 func TestHTTP(t *testing.T) {
-	services := setupNServices(t, 3, true)
+	services := setupNServices(t, 3, setupConf{
+		enablehttp: true,
+		enablegrpc: false,
+	})
 	time.Sleep(3 * time.Second)
 
 	leaderAddr, err := services[0].Config.RPCAddr()
@@ -175,4 +186,37 @@ func TestNoCommunication(t *testing.T) {
 	})
 	require.Error(t, err)
 	require.Equal(t, service.ErrNoCommunication, err)
+}
+
+func TestBothCommunication(t *testing.T) {
+	services := setupNServices(t, 3, setupConf{
+		enablehttp: true,
+		enablegrpc: true,
+	})
+	// give some time for the cluster to setup
+	time.Sleep(2 * time.Second)
+
+	leaderAddr, err := services[0].Config.RPCAddr()
+	require.NoError(t, err)
+	resp, err := http.Post(
+		fmt.Sprintf("http://%s/testkey", leaderAddr),
+		"text/plain",
+		bytes.NewBuffer([]byte("testval")),
+	)
+	require.NoError(t, err)
+	defer resp.Body.Close()
+
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+
+	body := httpGetHelper(t, fmt.Sprintf("http://%s/testkey", leaderAddr))
+	require.Equal(t, []byte("testval"), body)
+
+	time.Sleep(1 * time.Second)
+
+	followerClient := createClient(t, services[1])
+	r, err := followerClient.Get(context.Background(), &api.GetRequest{
+		Key: "key1",
+	})
+	require.NoError(t, err)
+	require.Equal(t, []byte("value1"), r.Value)
 }

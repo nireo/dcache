@@ -62,6 +62,9 @@ type Service struct {
 	store  *store.Store
 	reg    *registry.Registry
 
+	httpListener net.Listener
+	grpcListener net.Listener
+
 	shutdown     bool
 	shutdowns    chan struct{}
 	shutdownlock sync.Mutex
@@ -81,8 +84,21 @@ func New(conf Config) (*Service, error) {
 		return nil, ErrNoCommunication
 	}
 
+	if err := s.setupMux(); err != nil {
+		return nil, err
+	}
+
+	// We need to setup stores in a different order since the order the connections
+	// are matched in matters and we need the store instance to setup servers.
+	if s.Config.EnableGRPC {
+		s.grpcListener = s.mux.Match(cmux.HTTP2HeaderField("content-type", "application/grpc"))
+	}
+
+	if s.Config.EnableHTTP {
+		s.httpListener = s.mux.Match(cmux.HTTP1Fast())
+	}
+
 	setupFns := []func() error{
-		s.setupMux,
 		s.setupStore,
 		s.setupServer,
 		s.setupHTTP,
@@ -139,7 +155,7 @@ func (s *Service) setupStore() error {
 // setupServer sets up the grpc server. The grpc server is for clients to interact
 // with the service.
 func (s *Service) setupServer() error {
-	if !s.Config.EnableGRPC {
+	if s.grpcListener == nil {
 		return nil
 	}
 
@@ -153,9 +169,8 @@ func (s *Service) setupServer() error {
 		return err
 	}
 
-	grpcListener := s.mux.Match(cmux.Any())
 	go func() {
-		if err := s.server.Serve(grpcListener); err != nil {
+		if err := s.server.Serve(s.grpcListener); err != nil {
 			s.Close()
 		}
 	}()
@@ -223,7 +238,8 @@ func (s *Service) setupRegistry() error {
 
 // setupHTTP sets up a HTTP handler to interact with the store.
 func (s *Service) setupHTTP() error {
-	if !s.Config.EnableHTTP {
+	if s.httpListener == nil {
+		// http not enabled
 		return nil
 	}
 
@@ -232,8 +248,7 @@ func (s *Service) setupHTTP() error {
 		return err
 	}
 
-	httpListener := s.mux.Match(cmux.HTTP1Fast())
-	go fasthttp.Serve(httpListener, httpServer.Handler)
+	go fasthttp.Serve(s.httpListener, httpServer.Handler)
 
 	return nil
 }
