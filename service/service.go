@@ -91,7 +91,9 @@ func New(conf Config) (*Service, error) {
 	// We need to setup stores in a different order since the order the connections
 	// are matched in matters and we need the store instance to setup servers.
 	if s.Config.EnableGRPC {
-		s.grpcListener = s.mux.Match(cmux.HTTP2HeaderField("content-type", "application/grpc"))
+		s.grpcListener = s.mux.MatchWithWriters(
+			cmux.HTTP2MatchHeaderFieldPrefixSendSettings("content-type", "application/grpc"),
+		)
 	}
 
 	if s.Config.EnableHTTP {

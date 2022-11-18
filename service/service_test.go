@@ -215,8 +215,8 @@ func TestBothCommunication(t *testing.T) {
 
 	followerClient := createClient(t, services[1])
 	r, err := followerClient.Get(context.Background(), &api.GetRequest{
-		Key: "key1",
+		Key: "testkey",
 	})
 	require.NoError(t, err)
-	require.Equal(t, []byte("value1"), r.Value)
+	require.Equal(t, []byte("testval"), r.Value)
 }
