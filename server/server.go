@@ -3,7 +3,7 @@ package server
 import (
 	"context"
 
-	"github.com/nireo/dcache/api"
+	"github.com/nireo/dcache/pb"
 	"google.golang.org/grpc"
 )
 
@@ -17,11 +17,11 @@ type Cache interface {
 // cache struct. Since that would make us change the tests fully since we cannot
 // use bigcache easily.
 type ServerFinder interface {
-	GetServers() ([]*api.Server, error)
+	GetServers() ([]*pb.Server, error)
 }
 
 type grpcImpl struct {
-	api.UnsafeCacheServer
+	pb.UnsafeCacheServer
 	c  Cache
 	sf ServerFinder
 }
@@ -38,7 +38,7 @@ func NewServer(cache Cache, grpcOpts ...grpc.ServerOption) (
 ) {
 	grsv := grpc.NewServer(grpcOpts...)
 	srv := newimpl(cache)
-	api.RegisterCacheServer(grsv, srv)
+	pb.RegisterCacheServer(grsv, srv)
 
 	return grsv, nil
 }
@@ -50,40 +50,40 @@ func NewServerWithGetter(cache Cache, getter ServerFinder, grpcOpts ...grpc.Serv
 	grsv := grpc.NewServer(grpcOpts...)
 	srv := newimpl(cache)
 	srv.sf = getter
-	api.RegisterCacheServer(grsv, srv)
+	pb.RegisterCacheServer(grsv, srv)
 
 	return grsv, nil
 }
 
 // Set handles Set requests by calling the internal Cache's Set function
-func (s *grpcImpl) Set(ctx context.Context, req *api.SetRequest) (
-	*api.Empty, error,
+func (s *grpcImpl) Set(ctx context.Context, req *pb.SetRequest) (
+	*pb.Empty, error,
 ) {
 	err := s.c.Set(req.Key, req.Value)
 	if err != nil {
 		return nil, err
 	}
-	return &api.Empty{}, nil
+	return &pb.Empty{}, nil
 }
 
 // Get handles Get requests by calling the internal Cache's Get function.
-func (s *grpcImpl) Get(ctx context.Context, req *api.GetRequest) (
-	*api.GetResponse, error,
+func (s *grpcImpl) Get(ctx context.Context, req *pb.GetRequest) (
+	*pb.GetResponse, error,
 ) {
 	val, err := s.c.Get(req.Key)
 	if err != nil {
 		return nil, err
 	}
-	return &api.GetResponse{Value: val}, nil
+	return &pb.GetResponse{Value: val}, nil
 }
 
 // GetServers returns addresses to all of the Raft servers.
-func (s *grpcImpl) GetServers(ctx context.Context, req *api.Empty) (
-	*api.GetServer, error,
+func (s *grpcImpl) GetServers(ctx context.Context, req *pb.Empty) (
+	*pb.GetServer, error,
 ) {
 	servers, err := s.sf.GetServers()
 	if err != nil {
 		return nil, err
 	}
-	return &api.GetServer{Server: servers}, nil
+	return &pb.GetServer{Server: servers}, nil
 }

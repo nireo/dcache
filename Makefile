@@ -1,5 +1,5 @@
 proto:
-	protoc api/api.proto \
+	protoc pb/pb.proto \
 		--go_out=. \
 		--go-grpc_out=. \
 		--go_opt=paths=source_relative \

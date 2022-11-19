@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/allegro/bigcache/v3"
-	"github.com/nireo/dcache/api"
+	"github.com/nireo/dcache/pb"
 	"github.com/nireo/dcache/server"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
@@ -30,7 +30,7 @@ func (m *mockCache) Set(key string, val []byte) error {
 }
 
 func setupTest(t *testing.T, fn func(server.Cache)) (
-	client api.CacheClient, cleanup func(),
+	client pb.CacheClient, cleanup func(),
 ) {
 	t.Helper()
 
@@ -51,7 +51,7 @@ func setupTest(t *testing.T, fn func(server.Cache)) (
 		srv.Serve(l)
 	}()
 
-	client = api.NewCacheClient(cc)
+	client = pb.NewCacheClient(cc)
 	return client, func() {
 		srv.Stop()
 		cc.Close()
@@ -66,12 +66,12 @@ func TestSetGet(t *testing.T) {
 
 	ctx := context.Background()
 
-	_, err := client.Set(ctx, &api.SetRequest{
+	_, err := client.Set(ctx, &pb.SetRequest{
 		Key:   "testkey",
 		Value: []byte("testvalue"),
 	})
 	require.NoError(t, err)
-	res, err := client.Get(ctx, &api.GetRequest{
+	res, err := client.Get(ctx, &pb.GetRequest{
 		Key: "testkey",
 	})
 	require.NoError(t, err)
@@ -158,8 +158,8 @@ func TestPickerUsesFollowers(t *testing.T) {
 
 type getServers struct{}
 
-func (s *getServers) GetServers() ([]*api.Server, error) {
-	return []*api.Server{{
+func (s *getServers) GetServers() ([]*pb.Server, error) {
+	return []*pb.Server{{
 		Id:       "leader",
 		RpcAddr:  "localhost:9001",
 		IsLeader: true,

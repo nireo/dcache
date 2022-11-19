@@ -2,9 +2,9 @@
 // versions:
 // - protoc-gen-go-grpc v1.2.0
 // - protoc             v3.21.9
-// source: api/api.proto
+// source: pb/pb.proto
 
-package api
+package pb
 
 import (
 	context "context"
@@ -37,7 +37,7 @@ func NewCacheClient(cc grpc.ClientConnInterface) CacheClient {
 
 func (c *cacheClient) Set(ctx context.Context, in *SetRequest, opts ...grpc.CallOption) (*Empty, error) {
 	out := new(Empty)
-	err := c.cc.Invoke(ctx, "/api.Cache/Set", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/pb.Cache/Set", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -46,7 +46,7 @@ func (c *cacheClient) Set(ctx context.Context, in *SetRequest, opts ...grpc.Call
 
 func (c *cacheClient) Get(ctx context.Context, in *GetRequest, opts ...grpc.CallOption) (*GetResponse, error) {
 	out := new(GetResponse)
-	err := c.cc.Invoke(ctx, "/api.Cache/Get", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/pb.Cache/Get", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -55,7 +55,7 @@ func (c *cacheClient) Get(ctx context.Context, in *GetRequest, opts ...grpc.Call
 
 func (c *cacheClient) GetServers(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*GetServer, error) {
 	out := new(GetServer)
-	err := c.cc.Invoke(ctx, "/api.Cache/GetServers", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/pb.Cache/GetServers", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -108,7 +108,7 @@ func _Cache_Set_Handler(srv interface{}, ctx context.Context, dec func(interface
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/api.Cache/Set",
+		FullMethod: "/pb.Cache/Set",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(CacheServer).Set(ctx, req.(*SetRequest))
@@ -126,7 +126,7 @@ func _Cache_Get_Handler(srv interface{}, ctx context.Context, dec func(interface
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/api.Cache/Get",
+		FullMethod: "/pb.Cache/Get",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(CacheServer).Get(ctx, req.(*GetRequest))
@@ -144,7 +144,7 @@ func _Cache_GetServers_Handler(srv interface{}, ctx context.Context, dec func(in
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/api.Cache/GetServers",
+		FullMethod: "/pb.Cache/GetServers",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(CacheServer).GetServers(ctx, req.(*Empty))
@@ -156,7 +156,7 @@ func _Cache_GetServers_Handler(srv interface{}, ctx context.Context, dec func(in
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
 var Cache_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "api.Cache",
+	ServiceName: "pb.Cache",
 	HandlerType: (*CacheServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
@@ -173,5 +173,5 @@ var Cache_ServiceDesc = grpc.ServiceDesc{
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
-	Metadata: "api/api.proto",
+	Metadata: "pb/pb.proto",
 }

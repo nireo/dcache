@@ -13,6 +13,7 @@ type Transport struct {
 	ln net.Listener
 }
 
+// NewTransport creates a new transport instance.
 func NewTransport(ln net.Listener) *Transport {
 	return &Transport{
 		ln: ln,

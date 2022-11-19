@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/nireo/dcache/api"
+	"github.com/nireo/dcache/pb"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/attributes"
@@ -60,9 +60,9 @@ var _ resolver.Resolver = (*Resolver)(nil)
 func (r *Resolver) ResolveNow(resolver.ResolveNowOptions) {
 	r.Lock()
 	defer r.Unlock()
-	client := api.NewCacheClient(r.resolverConn)
+	client := pb.NewCacheClient(r.resolverConn)
 	ctx := context.Background()
-	res, err := client.GetServers(ctx, &api.Empty{})
+	res, err := client.GetServers(ctx, &pb.Empty{})
 	if err != nil {
 		r.log.Error(
 			"failed to resolve server",

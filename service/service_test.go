@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nireo/dcache/api"
+	"github.com/nireo/dcache/pb"
 	"github.com/nireo/dcache/service"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
@@ -41,7 +41,7 @@ func genNPorts(n int) []int {
 	return ports
 }
 
-func createClient(t *testing.T, serv *service.Service) api.CacheClient {
+func createClient(t *testing.T, serv *service.Service) pb.CacheClient {
 	opts := []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())}
 	rpcaddr, err := serv.Config.RPCAddr()
 	require.NoError(t, err)
@@ -49,7 +49,7 @@ func createClient(t *testing.T, serv *service.Service) api.CacheClient {
 	conn, err := grpc.Dial(rpcaddr, opts...)
 	require.NoError(t, err)
 
-	return api.NewCacheClient(conn)
+	return pb.NewCacheClient(conn)
 }
 
 func httpGetHelper(t *testing.T, addr string) []byte {
@@ -120,13 +120,13 @@ func TestGRPC(t *testing.T) {
 	time.Sleep(2 * time.Second)
 
 	leaderClient := createClient(t, services[0])
-	_, err := leaderClient.Set(context.Background(), &api.SetRequest{
+	_, err := leaderClient.Set(context.Background(), &pb.SetRequest{
 		Key:   "key1",
 		Value: []byte("value1"),
 	})
 	require.NoError(t, err)
 
-	r, err := leaderClient.Get(context.Background(), &api.GetRequest{
+	r, err := leaderClient.Get(context.Background(), &pb.GetRequest{
 		Key: "key1",
 	})
 	require.NoError(t, err)
@@ -136,7 +136,7 @@ func TestGRPC(t *testing.T) {
 	time.Sleep(3 * time.Second)
 
 	followerClient := createClient(t, services[1])
-	r, err = followerClient.Get(context.Background(), &api.GetRequest{
+	r, err = followerClient.Get(context.Background(), &pb.GetRequest{
 		Key: "key1",
 	})
 	require.NoError(t, err)
@@ -214,7 +214,7 @@ func TestBothCommunication(t *testing.T) {
 	time.Sleep(1 * time.Second)
 
 	followerClient := createClient(t, services[1])
-	r, err := followerClient.Get(context.Background(), &api.GetRequest{
+	r, err := followerClient.Get(context.Background(), &pb.GetRequest{
 		Key: "testkey",
 	})
 	require.NoError(t, err)

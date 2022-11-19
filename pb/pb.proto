@@ -1,6 +1,6 @@
 syntax = "proto3";
-package api;
-option go_package = "github.com/nireo/dcache/api";
+package pb;
+option go_package = "github.com/nireo/dcache/pb";
 
 service Cache {
   rpc Set(SetRequest) returns (Empty);

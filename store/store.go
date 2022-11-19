@@ -11,7 +11,7 @@ import (
 
 	"github.com/allegro/bigcache/v3"
 	"github.com/hashicorp/raft"
-	"github.com/nireo/dcache/api"
+	"github.com/nireo/dcache/pb"
 	fastlog "github.com/tidwall/raft-fastlog"
 	"go.uber.org/zap"
 )
@@ -43,6 +43,8 @@ func serializeEntry(flag byte, key string, val []byte) []byte {
 	return buf
 }
 
+// deserializeEntry takes in the bytes that serializeEntry created and parses the
+// entrie's details.
 func deserializeEntry(buf []byte) (byte, string, []byte) {
 	keySize := binary.LittleEndian.Uint32(buf[1:])
 	key := string(buf[5 : 5+keySize])
@@ -425,16 +427,16 @@ func (s *Store) WaitForLeader(t time.Duration) (string, error) {
 }
 
 // GetServers returns the server currently present in the node.
-func (s *Store) GetServers() ([]*api.Server, error) {
+func (s *Store) GetServers() ([]*pb.Server, error) {
 	f := s.raft.GetConfiguration()
 	if err := f.Error(); err != nil {
 		return nil, err
 	}
 
 	ss := f.Configuration().Servers
-	srvs := make([]*api.Server, len(ss))
+	srvs := make([]*pb.Server, len(ss))
 	for i := range ss {
-		srvs[i] = &api.Server{
+		srvs[i] = &pb.Server{
 			Id:         string(ss[i].ID),
 			RpcAddr:    string(ss[i].Address),
 			IsLeader:   s.raft.Leader() == ss[i].Address,
