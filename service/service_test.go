@@ -161,8 +161,6 @@ func TestHTTP(t *testing.T) {
 	require.NoError(t, err)
 	defer resp.Body.Close()
 
-	require.Equal(t, http.StatusOK, resp.StatusCode)
-
 	body := httpGetHelper(t, fmt.Sprintf("http://%s/testkey", leaderAddr))
 	require.Equal(t, []byte("testval"), body)
 
@@ -219,4 +217,25 @@ func TestBothCommunication(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.Equal(t, []byte("testval"), r.Value)
+}
+
+func TestSingleNode(t *testing.T) {
+	service := setupNServices(t, 1, setupConf{
+		enablehttp: true,
+		enablegrpc: true,
+	})
+
+	time.Sleep(1 * time.Second)
+	leaderClient := createClient(t, service[0])
+	_, err := leaderClient.Set(context.Background(), &pb.SetRequest{
+		Key:   "key1",
+		Value: []byte("value1"),
+	})
+	require.NoError(t, err)
+
+	r, err := leaderClient.Get(context.Background(), &pb.GetRequest{
+		Key: "key1",
+	})
+	require.NoError(t, err)
+	require.Equal(t, []byte("value1"), r.Value)
 }
