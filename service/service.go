@@ -1,6 +1,7 @@
 package service
 
 import (
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"io"
@@ -32,6 +33,9 @@ type Config struct {
 	// Enable different communications protocols for clients
 	EnableHTTP bool
 	EnableGRPC bool
+
+	ServerTLS *tls.Config
+	PeerTLS   *tls.Config
 }
 
 // RPCAddr returns the host:RPCPort string
@@ -139,7 +143,12 @@ func (s *Service) setupStore() error {
 	})
 
 	conf := store.Config{}
-	conf.Transport = store.NewTransport(raftListener)
+	conf.Transport = store.NewTLSTransport(
+		raftListener,
+		s.Config.ServerTLS,
+		s.Config.PeerTLS,
+	)
+
 	conf.LocalID = raft.ServerID(s.Config.NodeName)
 	conf.Bootstrap = s.Config.Bootstrap
 

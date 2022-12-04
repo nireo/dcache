@@ -1,6 +1,7 @@
 package store
 
 import (
+	"crypto/tls"
 	"fmt"
 	"net"
 	"time"
@@ -10,13 +11,24 @@ import (
 
 // Transport handles communications between different raft nodes.
 type Transport struct {
-	ln net.Listener
+	ln        net.Listener
+	servertls *tls.Config
+	peertls   *tls.Config
 }
 
 // NewTransport creates a new transport instance.
 func NewTransport(ln net.Listener) *Transport {
 	return &Transport{
 		ln: ln,
+	}
+}
+
+// NewTLSTransport creates a transport instance with the tls fields populated.
+func NewTLSTransport(ln net.Listener, servertls *tls.Config, peertls *tls.Config) *Transport {
+	return &Transport{
+		ln:        ln,
+		servertls: servertls,
+		peertls:   peertls,
 	}
 }
 
@@ -33,6 +45,11 @@ func (tn *Transport) Dial(addr raft.ServerAddress, timeout time.Duration) (net.C
 	if _, err = conn.Write([]byte{byte(1)}); err != nil {
 		return nil, err
 	}
+
+	if tn.peertls != nil {
+		return tls.Client(conn, tn.peertls), nil
+	}
+
 	return conn, nil
 }
 
@@ -51,6 +68,10 @@ func (tn *Transport) Accept() (net.Conn, error) {
 
 	if b[0] != 1 {
 		return nil, fmt.Errorf("not raft rpc connection")
+	}
+
+	if tn.servertls != nil {
+		return tls.Server(conn, tn.servertls), nil
 	}
 
 	return conn, nil
