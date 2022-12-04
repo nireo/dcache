@@ -2,8 +2,15 @@ package server
 
 import (
 	"context"
+	"time"
+
+	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
+	grpc_zap "github.com/grpc-ecosystem/go-grpc-middleware/logging/zap"
+	grpc_ctxtags "github.com/grpc-ecosystem/go-grpc-middleware/tags"
 
 	"github.com/nireo/dcache/pb"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 	"google.golang.org/grpc"
 )
 
@@ -36,6 +43,29 @@ func newimpl(c Cache) *grpcImpl {
 func NewServer(cache Cache, grpcOpts ...grpc.ServerOption) (
 	*grpc.Server, error,
 ) {
+	logger := zap.L().Named("server")
+	zapOpts := []grpc_zap.Option{
+		grpc_zap.WithDurationField(
+			func(duration time.Duration) zapcore.Field {
+				return zap.Int64(
+					"grpc.time_ns",
+					duration.Nanoseconds(),
+				)
+			},
+		),
+	}
+
+	grpcOpts = append(grpcOpts,
+		grpc.StreamInterceptor(
+			grpc_middleware.ChainStreamServer(
+				grpc_ctxtags.StreamServerInterceptor(),
+				grpc_zap.StreamServerInterceptor(logger, zapOpts...),
+			)), grpc.UnaryInterceptor(grpc_middleware.ChainUnaryServer(
+			grpc_ctxtags.UnaryServerInterceptor(),
+			grpc_zap.UnaryServerInterceptor(logger, zapOpts...),
+		)),
+	)
+
 	grsv := grpc.NewServer(grpcOpts...)
 	srv := newimpl(cache)
 	pb.RegisterCacheServer(grsv, srv)
@@ -47,6 +77,29 @@ func NewServer(cache Cache, grpcOpts ...grpc.ServerOption) (
 func NewServerWithGetter(cache Cache, getter ServerFinder, grpcOpts ...grpc.ServerOption) (
 	*grpc.Server, error,
 ) {
+	logger := zap.L().Named("server")
+	zapOpts := []grpc_zap.Option{
+		grpc_zap.WithDurationField(
+			func(duration time.Duration) zapcore.Field {
+				return zap.Int64(
+					"grpc.time_ns",
+					duration.Nanoseconds(),
+				)
+			},
+		),
+	}
+
+	grpcOpts = append(grpcOpts,
+		grpc.StreamInterceptor(
+			grpc_middleware.ChainStreamServer(
+				grpc_ctxtags.StreamServerInterceptor(),
+				grpc_zap.StreamServerInterceptor(logger, zapOpts...),
+			)), grpc.UnaryInterceptor(grpc_middleware.ChainUnaryServer(
+			grpc_ctxtags.UnaryServerInterceptor(),
+			grpc_zap.UnaryServerInterceptor(logger, zapOpts...),
+		)),
+	)
+
 	grsv := grpc.NewServer(grpcOpts...)
 	srv := newimpl(cache)
 	srv.sf = getter

@@ -52,6 +52,7 @@ func createClient(t *testing.T, serv *service.Service) pb.CacheClient {
 	return pb.NewCacheClient(conn)
 }
 
+
 func httpGetHelper(t *testing.T, addr string) []byte {
 	t.Helper()
 
