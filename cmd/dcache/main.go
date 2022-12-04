@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"syscall"
 
+	"github.com/nireo/dcache/security"
 	"github.com/nireo/dcache/service"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -14,6 +15,8 @@ import (
 
 type config struct {
 	service.Config
+	serverconf security.TLSConf
+	peerconf   security.TLSConf
 }
 
 func main() {
@@ -56,6 +59,18 @@ func parseFlags(cmd *cobra.Command) error {
 	cmd.Flags().Bool("http", false, "Enable HTTP server for client communication")
 	cmd.Flags().Bool("grpc", false, "Enable gRPC server for client communication")
 
+	cmd.Flags().String("server-tls-cert-file", "", "Path to server tls cert.")
+	cmd.Flags().String("server-tls-key-file", "", "Path to server tls key.")
+	cmd.Flags().String("server-tls-ca-file",
+		"",
+		"Path to server certificate authority.")
+
+	cmd.Flags().String("peer-tls-cert-file", "", "Path to peer tls cert.")
+	cmd.Flags().String("peer-tls-key-file", "", "Path to peer tls key.")
+	cmd.Flags().String("peer-tls-ca-file",
+		"",
+		"Path to peer certificate authority.")
+
 	if err := viper.BindPFlags(cmd.Flags()); err != nil {
 		return err
 	}
@@ -86,6 +101,33 @@ func (c *config) setupConf(cmd *cobra.Command, args []string) error {
 	c.StartJoinAddrs = viper.GetStringSlice("join")
 	c.EnableHTTP = viper.GetBool("http")
 	c.NodeName = viper.GetString("id")
+	c.serverconf.CertFile = viper.GetString("server-tls-cert-file")
+	c.serverconf.KeyFile = viper.GetString("server-tls-key-file")
+	c.serverconf.CAFile = viper.GetString("server-tls-ca-file")
+	c.peerconf.CertFile = viper.GetString("peer-tls-cert-file")
+	c.peerconf.KeyFile = viper.GetString("peer-tls-key-file")
+	c.peerconf.CAFile = viper.GetString("peer-tls-ca-file")
+
+	if c.serverconf.CertFile != "" &&
+		c.serverconf.KeyFile != "" {
+		c.serverconf.IsServer = true
+		c.ServerTLS, err = security.MakeTLSConfig(
+			c.serverconf,
+		)
+		if err != nil {
+			return err
+		}
+	}
+
+	if c.peerconf.CertFile != "" &&
+		c.peerconf.KeyFile != "" {
+		c.PeerTLS, err = security.MakeTLSConfig(
+			c.peerconf,
+		)
+		if err != nil {
+			return err
+		}
+	}
 
 	return nil
 }

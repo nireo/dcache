@@ -8,7 +8,7 @@ import (
 	"log"
 	"os"
 
-	"github.com/nireo/dcache/api"
+	"github.com/nireo/dcache/pb"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
@@ -28,10 +28,10 @@ func main() {
 	if err != nil {
 		log.Fatalf("cannot dial addr: %s", err)
 	}
-	client := api.NewCacheClient(conn)
+	client := pb.NewCacheClient(conn)
 
 	if *getServers {
-		res, err := client.GetServers(context.Background(), &api.Empty{})
+		res, err := client.GetServers(context.Background(), &pb.Empty{})
 		if err != nil {
 			log.Fatalf("error getting servers from server: %s", err)
 		}
@@ -52,7 +52,7 @@ func main() {
 		log.Fatalf("error reading stdin: %s", err)
 	}
 
-	_, err = client.Set(context.Background(), &api.SetRequest{
+	_, err = client.Set(context.Background(), &pb.SetRequest{
 		Key:   *key,
 		Value: val,
 	})
