@@ -72,6 +72,7 @@ type Config struct {
 	Bootstrap         bool
 	LocalID           raft.ServerID
 	SnapshotThreshold uint64
+	StrongConsistency bool
 
 	// Timeouts
 	HeartbeatTimeout   time.Duration
@@ -355,6 +356,20 @@ func (s *Store) createApplyReq(ty byte, key string, value []byte) (interface{}, 
 // adds a lot of overhead.
 func (s *Store) Get(key string) ([]byte, error) {
 	// TODO: strong consistency aka get from leader
+
+	if s.conf.StrongConsistency {
+		if !s.isLeader() {
+			return nil, raft.ErrNotLeader
+		}
+
+		res, err := s.createApplyReq(GetOperation, key, []byte{})
+		if err != nil {
+			return nil, err
+		}
+
+		r := res.(applyResult)
+		return r.res.([]byte), r.err
+	}
 
 	return s.cache.Get(key)
 }
