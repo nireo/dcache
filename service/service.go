@@ -163,6 +163,7 @@ func (s *Service) setupStore() error {
 	return err
 }
 
+
 // setupServer sets up the grpc server. The grpc server is for clients to interact
 // with the service.
 func (s *Service) setupServer() error {

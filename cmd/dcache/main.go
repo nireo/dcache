@@ -101,6 +101,8 @@ func (c *config) setupConf(cmd *cobra.Command, args []string) error {
 	c.StartJoinAddrs = viper.GetStringSlice("join")
 	c.EnableHTTP = viper.GetBool("http")
 	c.NodeName = viper.GetString("id")
+	c.EnableGRPC = viper.GetBool("grpc")
+	c.EnableHTTP = viper.GetBool("http")
 	c.serverconf.CertFile = viper.GetString("server-tls-cert-file")
 	c.serverconf.KeyFile = viper.GetString("server-tls-key-file")
 	c.serverconf.CAFile = viper.GetString("server-tls-ca-file")
