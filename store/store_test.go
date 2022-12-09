@@ -124,3 +124,85 @@ func TestJoinSelf(t *testing.T) {
 	err = store.Join("1", "localhost:1234")
 	require.Equal(t, ErrJoiningSelf, err)
 }
+
+func TestMultipleNodes(t *testing.T) {
+	nodeCount := 3
+	var err error
+	stores := make([]*Store, nodeCount)
+
+	for i := 0; i < nodeCount; i++ {
+		port, _ := getFreePort()
+		stores[i], err = newTestStore(t, port, i, i == 0)
+		require.NoError(t, err)
+
+		if i != 0 {
+			fmt.Println("started joining")
+			err = stores[0].Join(
+				string(stores[i].conf.LocalID),
+				string(stores[i].conf.Transport.Addr().String()),
+			)
+			require.NoError(t, err)
+		} else {
+			_, err = stores[i].WaitForLeader(3 * time.Second)
+			require.NoError(t, err)
+		}
+	}
+
+	type testPair struct {
+		key   string
+		value []byte
+	}
+
+	pairs := []testPair{
+		{
+			key:   "hello1",
+			value: []byte("value1"),
+		},
+		{
+			key:   "hello2",
+			value: []byte("value2"),
+		},
+	}
+
+	stores[0].WaitForLeader(3 * time.Second)
+
+	for _, pr := range pairs {
+		err := stores[0].Set(pr.key, pr.value)
+		require.NoError(t, err)
+
+		require.Eventually(t, func() bool {
+			for j := 0; j < nodeCount; j++ {
+				val, err := stores[j].Get(pr.key)
+				if err != nil {
+					return false
+				}
+				require.Equal(t, val, pr.value)
+			}
+
+			return true
+		}, 5*time.Second, 100*time.Millisecond)
+	}
+
+	servers, err := stores[0].GetServers()
+	require.NoError(t, err)
+	require.Equal(t, 3, len(servers))
+	require.True(t, servers[0].IsLeader)
+	require.False(t, servers[1].IsLeader)
+	require.False(t, servers[2].IsLeader)
+
+	err = stores[0].Leave("1")
+	require.NoError(t, err)
+
+	err = stores[0].Set("hello3", []byte("value3"))
+	require.NoError(t, err)
+
+	time.Sleep(50 * time.Millisecond)
+
+	val, err := stores[1].Get("hello3")
+	require.Nil(t, val)
+	require.Error(t, err)
+
+	val, err = stores[2].Get("hello3")
+	require.NoError(t, err)
+	require.Equal(t, []byte("value3"), val)
+}
