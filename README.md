@@ -82,12 +82,12 @@ Usage of ./dcache-client:
 package main
 
 import (
-  "fmt"
-  "log"
+	"fmt"
+	"log"
 
-  "github.com/nireo/dcache/pb"
-  "google.golang.org/grpc"
-  "google.golang.org/grpc/credentials/insecure"
+	"github.com/nireo/dcache/pb"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 // NOTE:
@@ -110,10 +110,10 @@ func main() {
 		log.Fatalf("error getting servers from server: %s", err)
 	}
 
-  for _, s := range res.Server {
-    fmt.Println(s)
-  }
-  return
+	for _, s := range res.Server {
+		fmt.Println(s)
+	}
+	return
 }
 ```
 
