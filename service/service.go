@@ -123,7 +123,12 @@ func New(conf Config) (*Service, error) {
 
 // setupMux sets up the connection multiplexer.
 func (s *Service) setupMux() error {
-	rpcAddr := fmt.Sprintf(":%d", s.Config.RPCPort)
+	host, _, err := net.SplitHostPort(s.Config.BindAddr)
+	if err != nil {
+		return err
+	}
+
+	rpcAddr := fmt.Sprintf("%s:%d", host, s.Config.RPCPort)
 	l, err := net.Listen("tcp", rpcAddr)
 	if err != nil {
 		return err
@@ -162,7 +167,6 @@ func (s *Service) setupStore() error {
 	}
 	return err
 }
-
 
 // setupServer sets up the grpc server. The grpc server is for clients to interact
 // with the service.
