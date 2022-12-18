@@ -52,7 +52,6 @@ func createClient(t *testing.T, serv *service.Service) pb.CacheClient {
 	return pb.NewCacheClient(conn)
 }
 
-
 func httpGetHelper(t *testing.T, addr string) []byte {
 	t.Helper()
 
@@ -74,7 +73,7 @@ type setupConf struct {
 func setupNServices(t *testing.T, n int, conf setupConf) []*service.Service {
 	var services []*service.Service
 
-	for i := 0; i < 3; i++ {
+	for i := 0; i < n; i++ {
 		ports := genNPorts(2)
 		bindaddr := fmt.Sprintf("%s:%d", "127.0.0.1", ports[0])
 		rpcPort := ports[1]

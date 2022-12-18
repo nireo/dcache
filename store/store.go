@@ -180,12 +180,14 @@ func New(conf Config) (*Store, error) {
 func (s *Store) Close() error {
 	s.logger.Sync()
 
+	// close raft
 	f := s.raft.Shutdown()
 	if err := f.Error(); err != nil {
 		return err
 	}
 
-	return nil
+	// close internal cache
+	return s.cache.Close()
 }
 
 // isLeader returns a boolean based on if the node is a leader or not.
@@ -460,4 +462,18 @@ func (s *Store) GetServers() ([]*pb.Server, error) {
 	}
 
 	return srvs, nil
+}
+
+// Stepdown forces the cluster to change the leadership.
+func (s *Store) Stepdown(wait bool) error {
+	if !s.isLeader() {
+		return raft.ErrNotLeader
+	}
+
+	f := s.raft.LeadershipTransfer()
+	if !wait {
+		return nil
+	}
+
+	return f.Error()
 }
